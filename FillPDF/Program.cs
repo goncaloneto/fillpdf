@@ -22,13 +22,21 @@ namespace FillPDF
 
         static void Main()
         {
-            Console.WriteLine("Qual é o ano de serviço que deseja exportar?");
-            var yearStr = Console.ReadLine();
-            if (!int.TryParse(yearStr, out int serviceYear))
+            var currentMonthStr = DateTime.Now.ToString("MM");
+            if (!int.TryParse(currentMonthStr, out int currentMonth))
             {
-                Console.WriteLine("Ano não é válido! Exemplo de formato: 2020");
+                Console.WriteLine($"Erro ao converter mês corrente para inteiro. Mês: {currentMonthStr}");
                 goto Finish;
             }
+
+            var yearStr = DateTime.Now.ToString("yyyy");
+            if (!int.TryParse(yearStr, out int serviceYear))
+            {
+                Console.WriteLine($"Erro ao converter ano corrente para inteiro. Ano: {yearStr}");
+                goto Finish;
+            }
+
+            if (currentMonth >= 9) serviceYear = serviceYear + 1;
 
             var pathRelatorios = Path.Combine(Directory.GetCurrentDirectory(), "Relatorios");
 
@@ -68,7 +76,15 @@ namespace FillPDF
 
             foreach (XElement el in pubs)
             {
-                var file = new FileStream("S-21-TPO.pdf", FileMode.Open);
+                FileStream file;
+                try
+                {
+                    file = new FileStream("S-21-TPO.pdf", FileMode.Open);
+                } catch(FileNotFoundException)
+                {
+                    Console.WriteLine("Coloque o PDF S-21 na pasta do executável, com o nome: S-21-TPO.pdf");
+                    goto Finish;
+                }
                 //Load the PDF document
                 PdfLoadedDocument loadedDocument = new PdfLoadedDocument(file);
 
@@ -89,11 +105,12 @@ namespace FillPDF
 
                 Console.WriteLine($"A preencher: {pubName} ({index++}/{totalPub})");
 
-                var pioneerType = FillForm(form, el, serviceYear.ToString());
+                var publisherType = FillForm(form, el, serviceYear.ToString());
+                FillForm(form, el, (serviceYear-1).ToString(),2);
 
                 string subfolder = "Outros";
 
-                switch (pioneerType)
+                switch (publisherType)
                 {
                     case PublisherType.RegularPioneer:
                         subfolder = "Pioneiros Regulares";
@@ -130,7 +147,7 @@ namespace FillPDF
             // Process.Start("Form.pdf");
         }
 
-        static PublisherType FillForm(PdfLoadedForm form, XElement el, string year)
+        static PublisherType FillForm(PdfLoadedForm form, XElement el, string year, int tableIndex = 1)
         {
             bool isPionner = false;
 
@@ -173,11 +190,8 @@ namespace FillPDF
                 publisherType = PublisherType.NonBaptized;
             }
 
-            (form.Fields["Service Year"] as PdfLoadedTextBoxField).Text = year;
-            int tableIndex = 1;
-
-            // (form.Fields["Service Year_2"] as PdfLoadedTextBoxField).Text = year;
-            // int tableIndex = 2;
+            if(tableIndex == 1) (form.Fields["Service Year"] as PdfLoadedTextBoxField).Text = year;
+            if(tableIndex == 2) (form.Fields["Service Year_2"] as PdfLoadedTextBoxField).Text = year;
 
             int totalPlace = 0, totalVideos = 0, totalHours = 0, totalRV = 0, totalStudies = 0, monthsWithActivity = 0;
 
@@ -224,8 +238,9 @@ namespace FillPDF
                     totalStudies += v;
 
                     value = (string)e.Element("Remark");
-                    (form.Fields[$"Remarks{GetMonth(i)}"] as PdfLoadedTextBoxField).Text =
-                        (string)e.Element("Pio") == "Aux" ? $"Pioneir{(IsMale(el) ? "o" : "a")} Auxiliar. {value}" : value;
+                    var text = (string)e.Element("Pio") == "Aux" ? $"Pioneir{(IsMale(el) ? "o" : "a")} Auxiliar. {value}" : value;
+                    if (tableIndex == 1) (form.Fields[$"Remarks{GetMonth(i)}"] as PdfLoadedTextBoxField).Text = text;
+                    else (form.Fields[$"Remarks{GetMonth(i)}_2"] as PdfLoadedTextBoxField).Text = text;
 
                     isPionner = (string)e.Element("Pio") == "Reg";
                     (form.Fields["Check Box7"] as PdfLoadedCheckBoxField).Checked = isPionner;
