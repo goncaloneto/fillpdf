@@ -105,8 +105,8 @@ namespace FillPDF
 
                 Console.WriteLine($"A preencher: {pubName} ({index++}/{totalPub})");
 
-                var publisherType = FillForm(form, el, serviceYear.ToString());
-                FillForm(form, el, (serviceYear-1).ToString(),2);
+                var publisherType = FillForm(form, el, serviceYear.ToString(),2);
+                FillForm(form, el, (serviceYear-1).ToString(),1);
 
                 string subfolder = "Outros";
 
